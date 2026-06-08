@@ -1,22 +1,30 @@
 import numpy as np
 
 from mlp.activations import get_activation
-from mlp.losses import softmax
+from mlp.losses import softmax, cross_entropy, accuracy
+from mlp.optimizers import SGD
 
 
 class MLP:
     """
     Rede Neural Multilayer Perceptron implementada do zero com NumPy.
 
-    Nesta primeira versão, a classe faz:
+    Esta versão possui:
     - inicialização dos pesos
     - forward pass
-    - predição
-
-    O treinamento e o backpropagation serão adicionados nas próximas etapas.
+    - backpropagation
+    - atualização com SGD
+    - train_step
+    - predict
     """
 
-    def __init__(self, layer_sizes, activation="relu", seed=42):
+    def __init__(
+        self,
+        layer_sizes,
+        activation="relu",
+        learning_rate=0.01,
+        seed=42
+    ):
         """
         Inicializa a rede neural.
 
@@ -27,14 +35,19 @@ class MLP:
             activation: função de ativação usada nas camadas ocultas.
                 Exemplo: "relu", "sigmoid" ou "tanh"
 
+            learning_rate: taxa de aprendizado usada pelo SGD.
+
             seed: valor para controlar a aleatoriedade dos pesos.
         """
+
         self.layer_sizes = layer_sizes
         self.activation_name = activation
         self.activation, self.activation_derivative = get_activation(activation)
 
         self.weights = []
         self.biases = []
+
+        self.optimizer = SGD(learning_rate=learning_rate)
 
         np.random.seed(seed)
         self._initialize_parameters()
@@ -43,10 +56,8 @@ class MLP:
         """
         Inicializa os pesos e vieses da rede.
 
-        Usamos inicialização He para ReLU, porque ela ajuda a manter os valores
-        em uma escala mais saudável durante o forward pass.
-
-        Para sigmoid e tanh, usamos uma escala baseada em Xavier.
+        Para ReLU, usamos inicialização He.
+        Para sigmoid e tanh, usamos uma inicialização próxima da Xavier.
         """
 
         for i in range(len(self.layer_sizes) - 1):
@@ -95,15 +106,81 @@ class MLP:
 
         return A
 
+    def backward(self, y_true):
+        """
+        Executa o backpropagation.
+
+        Parâmetros:
+            y_true: rótulos verdadeiros em one-hot encoding
+
+        Retorno:
+            dicionário com os gradientes dW e db
+        """
+
+        m = y_true.shape[0]
+
+        dW = [None] * len(self.weights)
+        db = [None] * len(self.biases)
+
+        # Derivada da combinação softmax + cross-entropy
+        dZ = self.activations_cache[-1] - y_true
+
+        for i in reversed(range(len(self.weights))):
+            A_prev = self.activations_cache[i]
+
+            dW[i] = np.dot(A_prev.T, dZ) / m
+            db[i] = np.sum(dZ, axis=0, keepdims=True) / m
+
+            if i > 0:
+                dA_prev = np.dot(dZ, self.weights[i].T)
+                dZ = dA_prev * self.activation_derivative(self.z_cache[i - 1])
+
+        gradients = {
+            "dW": dW,
+            "db": db
+        }
+
+        return gradients
+
+    def update_parameters(self, gradients):
+        """
+        Atualiza os pesos e vieses usando o otimizador configurado.
+        """
+
+        self.weights, self.biases = self.optimizer.update(
+            self.weights,
+            self.biases,
+            gradients
+        )
+
+    def train_step(self, X, y_true):
+        """
+        Executa uma etapa de treinamento.
+
+        Fluxo:
+            1. forward
+            2. cálculo da loss
+            3. cálculo da acurácia
+            4. backward
+            5. atualização dos parâmetros
+
+        Retorno:
+            loss e acurácia do batch
+        """
+
+        y_pred = self.forward(X)
+
+        loss = cross_entropy(y_pred, y_true)
+        acc = accuracy(y_pred, y_true)
+
+        gradients = self.backward(y_true)
+        self.update_parameters(gradients)
+
+        return loss, acc
+
     def predict(self, X):
         """
         Retorna a classe prevista para cada amostra.
-
-        Parâmetros:
-            X: matriz de entrada
-
-        Retorno:
-            array com as classes previstas.
         """
 
         probabilities = self.forward(X)
@@ -117,6 +194,7 @@ class MLP:
         """
 
         print("Arquitetura da MLP:")
+
         for i in range(len(self.layer_sizes) - 1):
             print(
                 f"Camada {i + 1}: "
