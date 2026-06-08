@@ -14,8 +14,9 @@ class MLP:
     - forward pass
     - backpropagation
     - atualização com SGD
-    - train_step
-    - predict
+    - treinamento com mini-batches
+    - avaliação
+    - predição
     """
 
     def __init__(
@@ -122,7 +123,6 @@ class MLP:
         dW = [None] * len(self.weights)
         db = [None] * len(self.biases)
 
-        # Derivada da combinação softmax + cross-entropy
         dZ = self.activations_cache[-1] - y_true
 
         for i in reversed(range(len(self.weights))):
@@ -155,17 +155,7 @@ class MLP:
 
     def train_step(self, X, y_true):
         """
-        Executa uma etapa de treinamento.
-
-        Fluxo:
-            1. forward
-            2. cálculo da loss
-            3. cálculo da acurácia
-            4. backward
-            5. atualização dos parâmetros
-
-        Retorno:
-            loss e acurácia do batch
+        Executa uma etapa de treinamento em um batch.
         """
 
         y_pred = self.forward(X)
@@ -175,6 +165,110 @@ class MLP:
 
         gradients = self.backward(y_true)
         self.update_parameters(gradients)
+
+        return loss, acc
+
+    def fit(
+        self,
+        X_train,
+        y_train,
+        X_val=None,
+        y_val=None,
+        epochs=20,
+        batch_size=64,
+        verbose=True
+    ):
+        """
+        Treina a rede neural usando mini-batches.
+
+        Parâmetros:
+            X_train: dados de treino
+            y_train: rótulos de treino em one-hot
+            X_val: dados de validação, opcional
+            y_val: rótulos de validação em one-hot, opcional
+            epochs: quantidade de épocas
+            batch_size: tamanho de cada mini-batch
+            verbose: se True, mostra o progresso no terminal
+
+        Retorno:
+            histórico com loss e acurácia de treino e validação
+        """
+
+        history = {
+            "train_loss": [],
+            "train_accuracy": [],
+            "val_loss": [],
+            "val_accuracy": []
+        }
+
+        n_samples = X_train.shape[0]
+
+        for epoch in range(epochs):
+            indices = np.random.permutation(n_samples)
+
+            X_shuffled = X_train[indices]
+            y_shuffled = y_train[indices]
+
+            batch_losses = []
+            batch_accuracies = []
+
+            for start in range(0, n_samples, batch_size):
+                end = start + batch_size
+
+                X_batch = X_shuffled[start:end]
+                y_batch = y_shuffled[start:end]
+
+                batch_loss, batch_acc = self.train_step(X_batch, y_batch)
+
+                batch_losses.append(batch_loss)
+                batch_accuracies.append(batch_acc)
+
+            train_loss = np.mean(batch_losses)
+            train_acc = np.mean(batch_accuracies)
+
+            history["train_loss"].append(train_loss)
+            history["train_accuracy"].append(train_acc)
+
+            if X_val is not None and y_val is not None:
+                val_loss, val_acc = self.evaluate(X_val, y_val)
+
+                history["val_loss"].append(val_loss)
+                history["val_accuracy"].append(val_acc)
+
+                if verbose:
+                    print(
+                        f"Época {epoch + 1}/{epochs} | "
+                        f"loss treino: {train_loss:.4f} | "
+                        f"acc treino: {train_acc:.4f} | "
+                        f"loss val: {val_loss:.4f} | "
+                        f"acc val: {val_acc:.4f}"
+                    )
+            else:
+                if verbose:
+                    print(
+                        f"Época {epoch + 1}/{epochs} | "
+                        f"loss treino: {train_loss:.4f} | "
+                        f"acc treino: {train_acc:.4f}"
+                    )
+
+        return history
+
+    def evaluate(self, X, y_true):
+        """
+        Avalia a rede em um conjunto de dados.
+
+        Parâmetros:
+            X: dados de entrada
+            y_true: rótulos verdadeiros em one-hot
+
+        Retorno:
+            loss e acurácia
+        """
+
+        y_pred = self.forward(X)
+
+        loss = cross_entropy(y_pred, y_true)
+        acc = accuracy(y_pred, y_true)
 
         return loss, acc
 
