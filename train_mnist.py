@@ -1,7 +1,37 @@
+import csv
+import os
 import time
 
 from mlp.data import load_mnist
 from mlp.network import MLP
+
+
+def save_history(history, filepath="results/historico_treino.csv"):
+    os.makedirs("results", exist_ok=True)
+
+    with open(filepath, mode="w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+
+        writer.writerow([
+            "epoch",
+            "train_loss",
+            "train_accuracy",
+            "val_loss",
+            "val_accuracy"
+        ])
+
+        epochs = len(history["train_loss"])
+
+        for i in range(epochs):
+            writer.writerow([
+                i + 1,
+                history["train_loss"][i],
+                history["train_accuracy"][i],
+                history["val_loss"][i],
+                history["val_accuracy"][i]
+            ])
+
+    print(f"Histórico salvo em: {filepath}")
 
 
 def main():
@@ -28,6 +58,8 @@ def main():
         batch_size=64,
         verbose=True
     )
+
+    save_history(history)
 
     test_loss, test_acc = model.evaluate(X_test, y_test)
 
