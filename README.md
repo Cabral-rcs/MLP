@@ -60,8 +60,6 @@ A estrutura final do projeto ficou organizada da seguinte forma:
 │   ├── losses.py
 │   ├── network.py
 │   └── optimizers.py
-├── notebooks/
-│   └── experimentos.ipynb
 └── results/
     ├── experimentos.csv
     ├── historico_treino.csv
@@ -304,14 +302,6 @@ Essa normalização ajuda o treinamento, pois evita trabalhar com valores muito 
 
 ---
 
-### `notebooks/experimentos.ipynb`
-
-Notebook reservado para testes, análises e experimentos manuais.
-
-Ele pode ser usado para explorar o comportamento da rede, testar configurações adicionais e visualizar dados ou resultados.
-
----
-
 ### `results/`
 
 Pasta onde ficam os arquivos de saída do projeto.
@@ -350,14 +340,7 @@ No PowerShell:
 ```powershell
 .\.venv\Scripts\Activate.ps1
 ```
-
-Se houver bloqueio de permissão no PowerShell, execute:
-
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
-
-Depois, ative novamente:
+Depois, ative:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
